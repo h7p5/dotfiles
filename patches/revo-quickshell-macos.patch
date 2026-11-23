@@ -1,0 +1,307 @@
+diff -ruN --no-dereference a/quickshell/macos/modules/about/AboutWindow.qml b/quickshell/macos/modules/about/AboutWindow.qml
+--- a/quickshell/macos/modules/about/AboutWindow.qml	2026-11-23 21:25:27.357070287 +0100
++++ b/quickshell/macos/modules/about/AboutWindow.qml	2026-11-23 22:41:05.129780028 +0100
+@@ -10,12 +10,15 @@
+ // faithful port of macos-tahoe-liquid-kde's AboutWindow.qml, using the
+ // shell's own Appearance palette instead of Kirigami and a Process for
+ // the JSON data source instead of plasma5support.
+-PopupWindow {
++// Achraf: real floating window (was a PopupWindow glued to the top bar and moved by hand,
++// which made it jump around while dragging and sometimes not show up)
++FloatingWindow {
+     id: aboutWindow
+ 
++    title: "About This Mac"
+     screen: Quickshell.screens[0]
+-    width: 360
+-    height: 640
++    implicitWidth: 360
++    implicitHeight: 640
+     color: "transparent"
+     visible: ShellController.aboutOpen
+ 
+@@ -79,9 +82,9 @@
+ 
+     onVisibleChanged: {
+         if (aboutWindow.visible) {
+-            aboutWindow.relativeX = Math.round((Quickshell.screens[0].width - aboutWindow.width) / 2);
+-            aboutWindow.relativeY = Math.round((Quickshell.screens[0].height - aboutWindow.height) / 2 - 40);
+             aboutWindow.refresh();
++        } else {
++            ShellController.aboutOpen = false;   // closed by Super+Q etc.
+         }
+     }
+ 
+@@ -99,16 +102,17 @@
+         // drag from anywhere
+         MouseArea {
+             anchors.fill: parent
+-            property point clickPos: Qt.point(0, 0)
+-            onPressed: (mouse) => { clickPos = Qt.point(mouse.x, mouse.y) }
+-            onPositionChanged: (mouse) => {
+-                aboutWindow.relativeX += mouse.x - clickPos.x;
+-                aboutWindow.relativeY += mouse.y - clickPos.y;
++            // let Hyprland move it (smooth, no jumping)
++            onPressed: (mouse) => {
++                const p = mapToItem(winButtons, mouse.x, mouse.y);
++                if (winButtons.contains(p)) { mouse.accepted = false; return; }   // let the close button get the click
++                glass.Window.window.startSystemMove();
+             }
+         }
+ 
+         // window buttons
+         Row {
++            id: winButtons
+             anchors { left: parent.left; top: parent.top; leftMargin: 14; topMargin: 14 }
+             spacing: 8
+             z: 1
+@@ -131,7 +135,7 @@
+                     opacity: closeHover.hovered ? 1 : 0
+                     Behavior on opacity { NumberAnimation { duration: 120 } }
+                 }
+-                TapHandler { onTapped: aboutWindow.visible = false }
++                TapHandler { onTapped: ShellController.aboutOpen = false }
+             }
+ 
+             // Minimize (decorative)
+diff -ruN --no-dereference a/quickshell/macos/modules/dock/Dock.qml b/quickshell/macos/modules/dock/Dock.qml
+--- a/quickshell/macos/modules/dock/Dock.qml	2026-11-23 21:25:27.358373676 +0100
++++ b/quickshell/macos/modules/dock/Dock.qml	2026-11-23 22:41:05.129431571 +0100
+@@ -12,7 +12,12 @@
+         id: root
+ 
+     // ── 1. الخصائص العادية والمخصصة (يجب أن تكون في البداية معاً) ──
+-    screen: Quickshell.screens[0]
++    // Achraf: one Dock per monitor (shell.qml makes the extra ones)
++    property var targetScreen: Quickshell.screens[0]
++    property bool isPrimary: true
++    property real uiScale: 1.0   // Achraf: per-monitor size
++    readonly property int myIconSize: Math.round(Appearance.dockIconSize * root.uiScale)
++    screen: root.targetScreen
+     anchors {
+         bottom: !root.dockVertical
+         top: root.dockVertical
+@@ -22,6 +27,8 @@
+ 
+     height: root.dockVertical ? root.capsuleWidth + 2 * root.fishPad : root.winThick
+     width: root.winThick
++    // Achraf: reserve only the Dock bar itself (not the hover-zoom space), so windows reach down to the Dock
++    exclusiveZone: Appearance.dockAutohide ? 0 : root.capsuleHeight + root.revealStrip
+     property bool isTrashFull: false
+ 
+     // ── 2. العناصر المستقلة (تأتي بعد الخصائص مباشرة) ──
+@@ -92,7 +99,7 @@
+     // ملاحظة: pos بإحداثيات نافذة الدوك (النافذة نفسها أسفل الشاشة)،
+     // و anchor.rect يُRelativeTo نفس النافذة، فالقائمة تمتد للأساسب (y سالب).
+     function layoutDownloads() {
+-        const screen = Quickshell.screens[0];
++        const screen = root.targetScreen;
+         const pos = root.dockVertical
+             ? dlSlot.mapToItem(null, dlSlot.width / 2, dlSlot.height / 2)
+             : dlSlot.mapToItem(null, dlSlot.width / 2, 14);
+@@ -206,6 +213,7 @@
+ 
+     IpcHandler {
+         target: "dock"
++        enabled: root.isPrimary
+         function iconRect(cls: string): string {
+             return root.iconLocalPos(cls);
+         }
+@@ -314,7 +322,7 @@
+     readonly property color sFgDim: Qt.rgba(255, 255, 255, 0.85)
+     readonly property color accent: "#0c84ff"
+ 
+-    readonly property int slotWidth: Appearance.dockIconSize + 12
++    readonly property int slotWidth: root.myIconSize + Math.round(12 * root.uiScale)
+     // DockBar: distanceTop 6 + tileSize + distanceBottom 10 (Dock.app init)
+     readonly property int capsuleHeight: root.slotWidth + 16
+     readonly property int totalSlots: DockApps.dockItems.length + root.shotItems.length + DockApps.minimizedItems.length + 2
+@@ -336,22 +344,22 @@
+ 
+     margins {
+         bottom: root.dockVertical
+-            ? Math.max(0, Math.round((Quickshell.screens[0].height - root.capsuleWidth) / 2) - root.fishPad)
++            ? Math.max(0, Math.round((root.targetScreen.height - root.capsuleWidth) / 2) - root.fishPad)
+             : Math.round(8 + root.hideOffset)
+         top: root.dockVertical
+-            ? Math.max(0, Math.round((Quickshell.screens[0].height - root.capsuleWidth) / 2) - root.fishPad)
++            ? Math.max(0, Math.round((root.targetScreen.height - root.capsuleWidth) / 2) - root.fishPad)
+             : 0
+         left: root.dockVertical
+             ? (root.dockLeft ? Math.round(8 + root.hideOffset) : 0)
+-            : Math.max(0, Math.round((Quickshell.screens[0].width - root.capsuleWidth) / 2) - root.fishPad)
++            : Math.max(0, Math.round((root.targetScreen.width - root.capsuleWidth) / 2) - root.fishPad)
+         right: root.dockVertical
+             ? (root.dockLeft ? 0 : Math.round(8 + root.hideOffset))
+-            : Math.max(0, Math.round((Quickshell.screens[0].width - root.capsuleWidth) / 2) - root.fishPad)
++            : Math.max(0, Math.round((root.targetScreen.width - root.capsuleWidth) / 2) - root.fishPad)
+     }
+    color: "transparent"
+     WlrLayershell.namespace: "macos:dock"
+ 
+-    readonly property int iconZoomFactor: Appearance.dockMagnification ? Math.round(Appearance.dockZoom) : 0
++    readonly property int iconZoomFactor: Appearance.dockMagnification ? Math.round(Appearance.dockZoom * root.uiScale) : 0
+     readonly property int revealStrip: 6
+ 
+     // ── macOS 27 Dock magnification ("fish"), decoded from Dock.app ─────────
+@@ -450,7 +458,7 @@
+         NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
+     }
+     HoverHandler { id: rootReveal }
+-    readonly property int iconBase: Appearance.dockIconSize
++    readonly property int iconBase: root.myIconSize
+     property int instantHoveredIndex: -1
+     property real instantHoveredFraction: 0.5
+     property bool menuOpen: false
+@@ -495,7 +503,7 @@
+         root.menuTarget = slot.app;
+         if (root.dockVertical) {
+             const g = slot.mapToItem(null, 0, slot.height / 2);
+-            const side = Math.max(0, (Quickshell.screens[0].height - root.capsuleWidth) / 2);
++            const side = Math.max(0, (root.targetScreen.height - root.capsuleWidth) / 2);
+             slotMenu.relativeX = root.dockLeft ? root.width + 8 : -slotMenu.width - 8;
+             slotMenu.relativeY = Math.max(6 - side,
+                 Math.min(root.height + side - slotMenu.height - 6, g.y - slotMenu.height / 2));
+@@ -617,7 +625,7 @@
+     PopupWindow {
+         id: nameTip
+         parentWindow: root
+-        screen: Quickshell.screens[0]
++        screen: root.targetScreen
+         color: "transparent"
+         implicitWidth: tipLabel.width + 16
+         implicitHeight: 22
+@@ -644,7 +652,7 @@
+     PopupWindow {
+         id: slotMenu
+         parentWindow: root
+-        screen: Quickshell.screens[0]
++        screen: root.targetScreen
+         width: 220
+         height: menuCol.implicitHeight + 12
+         visible: root.menuOpen
+diff -ruN --no-dereference a/quickshell/macos/modules/topbar/TopBar.qml b/quickshell/macos/modules/topbar/TopBar.qml
+--- a/quickshell/macos/modules/topbar/TopBar.qml	2026-11-23 21:25:27.378776279 +0100
++++ b/quickshell/macos/modules/topbar/TopBar.qml	2026-11-23 22:06:53.999147083 +0100
+@@ -21,8 +21,9 @@
+         right: true
+     }
+     margins { top: 6; left: 10; right: 10 }
+-    height: Appearance.barHeight
+-    exclusiveZone: Appearance.barHeight + 4
++    property real uiScale: 1.0   // Achraf: per-monitor size (content is scaled, see RowLayout below)
++    height: Math.round(Appearance.barHeight * root.uiScale)
++    exclusiveZone: Math.round((Appearance.barHeight + 4) * root.uiScale)
+     color: "transparent"
+     WlrLayershell.namespace: "macos:topbar"
+ 
+@@ -960,7 +961,7 @@
+     function anchor(popup, item) {
+         const pos = item.mapToItem(null, item.width / 2, item.height);
+         popup.relativeX = Math.max(6, Math.min(root.width - popup.width - 6, pos.x - popup.width / 2));
+-        popup.relativeY = Appearance.barHeight + 8;
++        popup.relativeY = root.height + 8;
+     }
+ 
+     function run(cmd) {
+@@ -1085,8 +1086,11 @@
+     }
+ 
+     RowLayout {
+-        anchors.fill: parent
+-        anchors.leftMargin: 6; anchors.rightMargin: 8
++        anchors.left: parent.left; anchors.top: parent.top
++        anchors.leftMargin: 6
++        width: parent.width / root.uiScale - 14
++        height: parent.height / root.uiScale
++        scale: root.uiScale; transformOrigin: Item.TopLeft
+         spacing: 2
+ 
+         // ---- Apple ----
+@@ -1383,7 +1387,7 @@
+         id: notificationCenter
+         parentWindow: root; screen: Quickshell.screens[0]
+         relativeX: root.width - 390
+-        relativeY: Appearance.barHeight + 8
++        relativeY: root.height + 8
+         implicitWidth: 380
+         implicitHeight: 460
+         visible: ShellController.notificationsOpen
+@@ -1815,7 +1819,7 @@
+     PopupWindow {
+         id: appleMenu
+         parentWindow: root; screen: Quickshell.screens[0]
+-        relativeX: 2; relativeY: Appearance.barHeight + 8
++        relativeX: 2; relativeY: root.height + 8
+         implicitWidth: 232; implicitHeight: 370; visible: root.appleOpen; color: "transparent"
+         Rectangle {
+             anchors.fill: parent; radius: 12; 
+diff -ruN --no-dereference a/quickshell/macos/shell.qml b/quickshell/macos/shell.qml
+--- a/quickshell/macos/shell.qml	2026-11-23 21:25:27.379606466 +0100
++++ b/quickshell/macos/shell.qml	2026-11-23 22:09:14.209396336 +0100
+@@ -19,13 +19,35 @@
+ 
+ ShellRoot {
+     id: root
++    // Achraf: size of the menu bar + Dock per monitor (1 = original revo size)
++    property real mainScreenScale: 0.75     // square monitor (VGA-1)
++    property real secondScreenScale: 0.72   // wide monitor (HDMI-A-2)
+ 
+-    TopBar { id: topBar }
++    TopBar { id: topBar; uiScale: root.mainScreenScale }
++    // Achraf: menu bar on every other monitor too (the main one keeps id topBar)
++    Variants {
++        model: Quickshell.screens.filter((s, i) => i > 0)
++        TopBar {
++            required property var modelData
++            screen: modelData
++            uiScale: root.secondScreenScale
++        }
++    }
+     Loader { active: Config.spotlight.enable; sourceComponent: Spotlight {} }
+     Loader { active: Config.launchpad.enable; sourceComponent: Launcher {} }
+-    Loader { active: Config.dock.enable; sourceComponent: Dock {} }
++    Loader { active: Config.dock.enable; sourceComponent: Dock { uiScale: root.mainScreenScale } }
++    // Achraf: Dock on every other monitor too
++    Variants {
++        model: Config.dock.enable ? Quickshell.screens.filter((s, i) => i > 0) : []
++        Dock {
++            required property var modelData
++            targetScreen: modelData
++            isPrimary: false
++            uiScale: root.secondScreenScale
++        }
++    }
+     Genie {}
+-    AboutWindow { parentWindow: topBar }
++    AboutWindow {}
+     NotificationPopup {}
+     Session {}
+     ConfirmDialog {}
+diff -ruN --no-dereference a/quickshell/macos/userconfig.json b/quickshell/macos/userconfig.json
+--- a/quickshell/macos/userconfig.json	2026-11-23 21:25:27.379606466 +0100
++++ b/quickshell/macos/userconfig.json	2026-11-23 22:41:05.129193543 +0100
+@@ -20,12 +20,12 @@
+   },
+   "dockAnimateHide": true,
+   "dockAutohide": false,
+-  "dockIconSize": 48,
++  "dockIconSize": 34,
+   "dockIndicators": true,
+   "dockMagnification": true,
+   "dockPosition": "bottom",
+   "dockShowAnimation": true,
+-  "dockZoom": 74,
++  "dockZoom": 40,
+   "folderColor": "",
+   "highlightColor": "#0A6CFF",
+   "iconStyle": "Default",
+@@ -56,7 +56,7 @@
+   "menubarSpotlight": true,
+   "menubarTray": true,
+   "menubarWifi": true,
+-  "reduceMotion": true,
++  "reduceMotion": false,
+   "spotlightEnable": true,
+   "hotCorners": {
+     "tl": "-",

@@ -1,0 +1,10 @@
+diff -ruN --no-dereference a/kitty/kitty.conf b/kitty/kitty.conf
+--- a/kitty/kitty.conf	2026-11-23 21:25:26.830834593 +0100
++++ b/kitty/kitty.conf	2026-11-23 22:15:43.280522782 +0100
+@@ -1,5 +1,5 @@
+ font_family      JetBrains Mono
+-font_size        16.0
++font_size        11.0
+ bold_font        auto
+ italic_font      auto
+ bold_italic_font auto

@@ -1,0 +1,158 @@
+diff -ruN --no-dereference a/hypr/configs/autostart.lua b/hypr/configs/autostart.lua
+--- a/hypr/configs/autostart.lua	2026-11-23 21:25:26.776898642 +0100
++++ b/hypr/configs/autostart.lua	2026-11-23 22:03:37.731772471 +0100
+@@ -28,10 +28,10 @@
+     hl.exec_cmd("wl-paste --type image --watch cliphist store")
+     hl.exec_cmd("systemctl --user start hyprpolkitagent")
+     hl.exec_cmd("hypridle")
+-    hl.exec_cmd("awww-daemon & sleep 1; " .. HOME_DIR .. "/.config/hypr/scripts/wallpapers/set-random.sh")
+-    hl.exec_cmd("hyprshade on vibrance")
+-    hl.exec_cmd("skwd")
+-    hl.exec_cmd("~/.config/skwd/scripts/bash/restore-wallpaper")
++    hl.exec_cmd("awww-daemon")  -- Achraf: keeps the last wallpaper you chose (was: a random one at every login)
++    -- Achraf (disabled): hl.exec_cmd("hyprshade on vibrance")
++    -- Achraf (disabled): hl.exec_cmd("skwd")
++    -- Achraf (disabled): hl.exec_cmd("~/.config/skwd/scripts/bash/restore-wallpaper")
+ 
+     -- selected shell (installer marker) vs. the legacy rice shells
+     if shell then
+@@ -48,8 +48,8 @@
+     hl.exec_cmd("swayosd-server --top-margin 0.9")
+     hl.exec_cmd("~/.config/hypr/scripts/volume_listener.sh")
+     hl.exec_cmd("~/.config/hypr/scripts/settings_watcher.sh &")
+-    hl.exec_cmd("~/.config/hypr/scripts/update_notifier.sh &")
+-    hl.exec_cmd("systemctl --user enable --now easyeffects")
++    -- Achraf (disabled): hl.exec_cmd("~/.config/hypr/scripts/update_notifier.sh &")
++    -- Achraf (disabled): hl.exec_cmd("systemctl --user enable --now easyeffects")
+     if not shell then
+         hl.exec_cmd("quickshell -p ~/.config/hypr/scripts/quickshell/Powermenu.qml")
+     end
+@@ -57,10 +57,10 @@
+     hl.exec_cmd("hyprctl setcursor QingyiBLZ 24")
+     hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-theme 'QingyiBLZ'")
+     hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-size 24")
+-    hl.exec_cmd(HOME_DIR .. "/.config/hypr/sounds/keysound.py")
++    -- Achraf (disabled): hl.exec_cmd(HOME_DIR .. "/.config/hypr/sounds/keysound.py")
+ 
+     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
+-    hl.exec_cmd("hyprctl eval 'hl.plugin.hypr3d.toggle()'")
++    -- Achraf (disabled): hl.exec_cmd("hyprctl eval 'hl.plugin.hypr3d.toggle()'")
+     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
+     hl.exec_cmd("systemctl --user restart xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-desktop-portal")
+ end)
+diff -ruN --no-dereference a/hypr/configs/env.lua b/hypr/configs/env.lua
+--- a/hypr/configs/env.lua	2026-11-23 21:25:26.776898642 +0100
++++ b/hypr/configs/env.lua	2026-11-23 21:27:52.492930087 +0100
+@@ -3,13 +3,13 @@
+ hl.env("HYPRCURSOR_SIZE", 24)
+ hl.env("HYPRCURSOR_THEME", "QingyiBLZ")
+ hl.env("PATH", (os.getenv("HOME") or "") .. "/.local/bin:" .. os.getenv("PATH"))
+-hl.env("LIBVA_DRIVER_NAME", "nvidia")
+-hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+-hl.env("OMARCHY_LOOKING_GLASS", 1)
+-hl.env("IVSHMEM_KEY", "omarchy-win-vm")
++-- Achraf (Intel GPU, not NVIDIA): hl.env("LIBVA_DRIVER_NAME", "nvidia")
++-- Achraf (Intel GPU, not NVIDIA): hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
++-- Achraf (Intel GPU, not NVIDIA): hl.env("OMARCHY_LOOKING_GLASS", 1)
++-- Achraf (Intel GPU, not NVIDIA): hl.env("IVSHMEM_KEY", "omarchy-win-vm")
+ hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
+ hl.env("SCREENSHOT_PROVIDER", "ext-image-copy-capture-v1")
+-hl.env("NVD_BACKEND", "direct")
++-- Achraf (Intel GPU, not NVIDIA): hl.env("NVD_BACKEND", "direct")
+ hl.env("WEBRTC_FORCE_HW_CODEC", "1")
+ hl.env("GTK_THEME", "MacTahoe-Dark-solid")
+ hl.env("QS_ICON_THEME", "MacTahoe-grey-dark")
+diff -ruN --no-dereference a/hypr/configs/monitors.lua b/hypr/configs/monitors.lua
+--- a/hypr/configs/monitors.lua	2026-11-23 21:25:26.776898642 +0100
++++ b/hypr/configs/monitors.lua	2026-11-23 21:27:52.348930098 +0100
+@@ -1,11 +1,4 @@
+--- ملف إعدادات الشاشة monitors.lua
+--- تفعيل الدقة القصوى (120Hz) مع عمق ألوان 10-bit، والـ HDR، والـ VRR تلقائياً
+-
+-hl.monitor({
+-    output         = "eDP-1",
+-    mode           = "2560x1600@120",
+-    position       = "auto",
+-    scale          = 1,
+-    vrr            = 2,
+-})
+-
++-- Achraf: monitors (from the old user.lua)
++hl.monitor({ output = "VGA-1",    mode = "preferred", position = "auto", scale = 1 })
++hl.monitor({ output = "HDMI-A-2", mode = "preferred", position = "auto", scale = 0.9 })
++hl.monitor({ output = "",         mode = "preferred", position = "auto", scale = 1 })
+diff -ruN --no-dereference a/hypr/hyprland.lua b/hypr/hyprland.lua
+--- a/hypr/hyprland.lua	2026-11-23 21:25:26.776940794 +0100
++++ b/hypr/hyprland.lua	2026-11-23 21:28:13.735230549 +0100
+@@ -75,3 +75,6 @@
+ 
+ -- Brain_ShellKeybinds (guarded — the file is user-specific and may not exist)
+ pcall(dofile, HOME_DIR .. "/.config/Brain_Shell/Brain_ShellKeybinds.lua")
++
++-- Achraf: personal overrides (keep last)
++require("achraf")
+diff -ruN --no-dereference a/hypr/scripts/quickshell/wallpaper/matugen_reload.sh b/hypr/scripts/quickshell/wallpaper/matugen_reload.sh
+--- a/hypr/scripts/quickshell/wallpaper/matugen_reload.sh	2026-11-23 21:25:26.828852507 +0100
++++ b/hypr/scripts/quickshell/wallpaper/matugen_reload.sh	2026-11-23 22:18:02.615003498 +0100
+@@ -75,8 +75,8 @@
+ fi
+ 
+ # Reload SwayNC CSS styling dynamically without killing the daemon
+-if command -v swaync-client &> /dev/null; then
+-    swaync-client -rs
++if command -v swaync-client &> /dev/null && pgrep -x swaync >/dev/null; then   # Achraf: client hangs forever when swaync is not running
++    timeout 3 swaync-client -rs
+ fi
+ 
+ # Restart swayosd-server in the background and disown it so the script doesn't hang
+diff -ruN --no-dereference a/hypr/scripts/quickshell/WallpaperBrowser.qml b/hypr/scripts/quickshell/WallpaperBrowser.qml
+--- a/hypr/scripts/quickshell/WallpaperBrowser.qml	2026-11-23 21:25:26.778940794 +0100
++++ b/hypr/scripts/quickshell/WallpaperBrowser.qml	2026-11-23 22:03:27.727510358 +0100
+@@ -79,8 +79,8 @@
+     function buildScanCmd() {
+         return ["bash", "-c",
+             "D=\"${XDG_CONFIG_HOME:-$HOME/.config}/wallpapers\"; " +
+-            "find \"$D\" -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.gif' \\) " +
+-            "-printf '%T@\\t%p\\n' 2>/dev/null | sort -rn | head -200 | cut -f2- | " +
++            "find -L \"$D\" -maxdepth 2 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.gif' \\) " +
++            "-printf '%T@\\t%p\\n' 2>/dev/null | sort -rn | head -800 | cut -f2- | " +
+             "while IFS= read -r f; do k=$(printf '%s' \"$f\" | md5sum | cut -d' ' -f1); m=$(stat -c %Y \"$f\" 2>/dev/null); printf '%s\\t%s/%s-%s.jpg\\n' \"$f\" \"$HOME/.cache/quickshell-img-thumbs\" \"$k\" \"$m\"; done"]
+     }
+ 
+diff -ruN --no-dereference a/hypr/scripts/toggle_qs_dots.sh b/hypr/scripts/toggle_qs_dots.sh
+--- a/hypr/scripts/toggle_qs_dots.sh	2026-11-23 21:25:26.829145991 +0100
++++ b/hypr/scripts/toggle_qs_dots.sh	2026-11-23 22:06:53.959758054 +0100
+@@ -82,6 +82,7 @@
+             setsid -f quickshell -p "$HYPR_QS/TopBar.qml" >/dev/null 2>&1
+         fi
+     elif [[ "$target" == "macos" ]]; then
++        # Achraf: bar/Dock size per monitor = mainScreenScale / secondScreenScale in macos/shell.qml (QT_SCALE_FACTOR broke menu placement and window dragging)
+         setsid -f quickshell -p "$QS_BASE/macos/shell.qml" >"$HOME/macos.log" 2>&1
+         # macOS dots ship with the k4 Dynamic Island (the notch) — optional:
+         # skipping it must not break the shell itself
+diff -ruN --no-dereference a/hypr/scripts/wallpapers/random.sh b/hypr/scripts/wallpapers/random.sh
+--- a/hypr/scripts/wallpapers/random.sh	2026-11-23 21:25:26.829918655 +0100
++++ b/hypr/scripts/wallpapers/random.sh	2026-11-23 22:03:27.732408476 +0100
+@@ -1,7 +1,7 @@
+ #!/bin/bash
+ 
+ WALLPAPERS_DIR="$HOME/.config/wallpapers"
+-NEW_WALL=$(find $WALLPAPERS_DIR -type f | shuf -n 1)
++NEW_WALL=$(find -L "$WALLPAPERS_DIR" -maxdepth 2 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) | shuf -n 1)
+ 
+ 
+ ~/.config/hypr/scripts/wallpapers/set.sh "$NEW_WALL"
+diff -ruN --no-dereference a/hypr/scripts/wallpapers/set.sh b/hypr/scripts/wallpapers/set.sh
+--- a/hypr/scripts/wallpapers/set.sh	2026-11-23 21:25:26.829918655 +0100
++++ b/hypr/scripts/wallpapers/set.sh	2026-11-23 22:15:50.112549591 +0100
+@@ -6,6 +6,10 @@
+ awww img --transition-type center --transition-step 90 "$WALL"
+ echo "Wallpaper set successfully"
+ 
++# Achraf: colors (kitty, Arch logo, GTK...) follow the new wallpaper
++matugen image "$WALL" --source-color-index 0 >/dev/null 2>&1 || true
++bash "$HOME/.config/hypr/scripts/quickshell/wallpaper/matugen_reload.sh" >/dev/null 2>&1 || true
++
+ 
+ if command -v wal >/dev/null 2>&1; then
+     echo "applying pywal colors..."
